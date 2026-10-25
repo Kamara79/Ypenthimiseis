@@ -1,0 +1,39 @@
+# Κάθε μέρα κατεβάζει το ανοιχτό αρχείο τιμών του ΠόσοΚάνει (github.com/spyrosavl/posokanei),
+# κρατάει μόνο τα σούπερ μάρκετ της Σητείας και το ανεβάζει στο branch "timi" ως prices.json.
+name: Τιμές σούπερ μάρκετ
+
+on:
+  schedule:
+    - cron: "30 13 * * *"
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: timi
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Λήψη του ημερήσιου αρχείου
+        run: |
+          base=https://raw.githubusercontent.com/spyrosavl/posokanei/main
+          path=$(curl -fsSL "$base/data/latest.json" | python3 -c "import json,sys; print(json.load(sys.stdin)['path'])")
+          curl -fsSL "$base/$path" -o snapshot.json
+      - name: Φιλτράρισμα για Σητεία
+        run: |
+          mkdir out
+          python3 scripts/build_prices.py snapshot.json out/prices.json
+          ls -la out
+      - name: Ανέβασμα στο branch timi
+        run: |
+          cd out
+          git init -q -b timi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add prices.json
+          git commit -q -m "Τιμές $(python3 -c "import json; print(json.load(open('prices.json'))['date'])")"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" timi
