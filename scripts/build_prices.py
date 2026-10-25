@@ -3,7 +3,19 @@ import json, sys
 
 CHAINS = ["ab_vasilopoulos", "kritikos", "lidl", "halkiadakis"]
 
+def aisles(snapshot):
+    """Για κάθε κατηγορία, το όνομα της κατηγορίας 1ου επιπέδου (π.χ. «Καφές», «Γάλα»): περίπου ένας διάδρομος/ράφι."""
+    cats = {c["category_id"]: c for c in snapshot["categories"]["categories"]}
+    def top(cid):
+        c = cats.get(cid)
+        while c and c.get("depth", 0) > 1 and c.get("parent_id") in cats:
+            c = cats[c["parent_id"]]
+        return c["category_name"].replace("\u200b", "").strip() if c and c.get("depth", 0) == 1 else None
+    return top
+
+
 def build(snapshot):
+    top = aisles(snapshot)
     out = []
     for p in snapshot["products"]:
         prices = {}
@@ -13,7 +25,8 @@ def build(snapshot):
         if not prices:
             continue
         item = {"id": p["id"], "n": p["name"].strip(), "u": p.get("unit"),
-                "c": p.get("category"), "img": p.get("image_url") if p.get("has_image") else None,
+                "c": p.get("category"),
+                "g": next((g for g in map(top, p.get("category_ids") or []) if g), p.get("subcategory")), "img": p.get("image_url") if p.get("has_image") else None,
                 "p": prices}
         if p.get("price_drop"):
             item["drop"] = {k: p.get("price_drop_" + k) for k in ("company", "from", "to", "percentage", "end", "title")}
