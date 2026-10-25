@@ -2,7 +2,7 @@
 <html lang="el">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Υπενθυμίσεις</title>
 <meta name="theme-color" content="#14161a">
 <link rel="manifest" href="manifest.json">
@@ -10,12 +10,39 @@
 <link rel="apple-touch-icon" href="https://fonts.gstatic.com/s/e/notoemoji/latest/23f0/512.png">
 <style>
   html, body { margin:0; height:100%; background:#14161a; }
-  iframe { position:fixed; inset:0; width:100%; height:100%; border:0; }
+  /* dvh: όταν ανοίγει το πληκτρολόγιο, η εφαρμογή μικραίνει αντί να κρύβεται από κάτω του */
+  iframe { position:fixed; top:0; left:0; width:100%; height:100%; height:100dvh; border:0; }
 </style>
 </head>
 <body>
 <!-- Η εφαρμογή ζει στο Google Apps Script· εδώ μόνο την ανοίγουμε σε όλη την οθόνη. -->
 <iframe src="https://script.google.com/macros/s/AKfycbwWhP6kqKx8pOB5zb-ScSUNk2rG2Oh95eWRicAu5zu3Yrk2FsJ0YUQRTP5MeuuEmjUf/exec"
         allow="microphone; clipboard-write" title="Υπενθυμίσεις"></iframe>
+<script>
+// Κουμπί «Πίσω» του κινητού: όταν η εφαρμογή ανοίγει κάτι (καρτέλα τιμών, «Ψωνίζω εδώ»)
+// μας στέλνει ypen-back-open· το «Πίσω» τότε το κλείνει αντί να βγάζει από την εφαρμογή.
+(function () {
+  var frame = document.querySelector('iframe');
+  var open = 0, skipPop = false;
+  function fromApp(origin) {
+    return /^https:\/\/([a-z0-9-]+\.)*(googleusercontent\.com|google\.com)$/.test(origin);
+  }
+  function tellApp(msg) {
+    var w = frame.contentWindow;
+    if (!w) return;
+    w.postMessage(msg, '*');
+    for (var i = 0; i < w.frames.length; i++) w.frames[i].postMessage(msg, '*');
+  }
+  window.addEventListener('message', function (e) {
+    if (!fromApp(e.origin) || !e.data || typeof e.data !== 'object') return;
+    if (e.data.type === 'ypen-back-open') { open++; history.pushState({ ypen: open }, ''); }
+    if (e.data.type === 'ypen-back-close' && open > 0) { open--; skipPop = true; history.back(); }
+  });
+  window.addEventListener('popstate', function () {
+    if (skipPop) { skipPop = false; return; }
+    if (open > 0) { open--; tellApp({ type: 'ypen-back' }); }
+  });
+})();
+</script>
 </body>
 </html>
