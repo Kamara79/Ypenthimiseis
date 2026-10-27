@@ -1,6 +1,6 @@
 {
-  "name": "Υπενθυμίσεις",
-  "short_name": "Υπενθυμίσεις",
+  "name": "Το τεφτέρι μου",
+  "short_name": "Το τεφτέρι μου",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#14161a",
