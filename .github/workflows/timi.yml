@@ -25,10 +25,12 @@ jobs:
           base=https://raw.githubusercontent.com/spyrosavl/posokanei/main
           path=$(curl -fsSL "$base/data/latest.json" | python3 -c "import json,sys; print(json.load(sys.stdin)['path'])")
           curl -fsSL "$base/$path" -o snapshot.json
+          # χθεσινό αρχείο, για να θυμόμαστε τις κανονικές τιμές όταν κάτι είναι σε προσφορά
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/timi/prices.json" -o prev.json || true
       - name: Φιλτράρισμα για Σητεία
         run: |
           mkdir out
-          python3 scripts/build_prices.py snapshot.json out/prices.json
+          python3 scripts/build_prices.py snapshot.json out/prices.json prev.json
           ls -la out
       - name: Ανέβασμα στο branch timi
         run: |
