@@ -3,7 +3,7 @@ import json, sys, os, urllib.request, datetime
 
 BASE = "https://raw.githubusercontent.com/spyrosavl/posokanei/main/data"
 
-CHAINS = ["ab_vasilopoulos", "kritikos", "lidl", "halkiadakis"]
+CHAINS = ["ab_vasilopoulos", "masoutis", "lidl", "halkiadakis"]   # ο Κρητικός Σητείας έγινε Μασούτης (12/11/2026)
 
 def aisles(snapshot):
     """Για κάθε κατηγορία, το όνομα της κατηγορίας 1ου επιπέδου (π.χ. «Καφές», «Γάλα»): περίπου ένας διάδρομος/ράφι."""
@@ -12,7 +12,7 @@ def aisles(snapshot):
         c = cats.get(cid)
         while c and c.get("depth", 0) > 1 and c.get("parent_id") in cats:
             c = cats[c["parent_id"]]
-        return c["category_name"].replace("\u200b", "").strip() if c and c.get("depth", 0) == 1 else None
+        return c["category_name"].replace("​", "").strip() if c and c.get("depth", 0) == 1 else None
     return top
 
 
@@ -20,13 +20,17 @@ def regular_prices(snapshot, prev):
     """Για κάθε (προϊόν, αλυσίδα): η τελευταία τιμή που ΔΕΝ ήταν προσφορά.
     Παίρνει τις κανονικές τιμές από το χθεσινό prices.json· την πρώτη φορά ψάχνει έως 14 μέρες πίσω."""
     reg = {}
+    seen = set()   # αλυσίδες που υπάρχουν ήδη στο χθεσινό prices.json
     for item in (prev or {}).get("products", []):
         for ch, v in item["p"].items():
+            seen.add(ch)
             r = v[0] if not v[2] else (v[3] if len(v) > 3 else None)
             if r is not None:
                 reg[(item["id"], ch)] = r
-    if prev and any(len(v) > 3 for i in prev.get("products", []) for v in i["p"].values()):
+    if prev and any(len(v) > 3 for i in prev.get("products", []) for v in i["p"].values()) and all(c in seen for c in CHAINS):
         return reg
+    # (πρώτη φορά, ή μπήκε καινούργια αλυσίδα όπως ο Μασούτης): ψάχνει έως 14 μέρες πίσω μόνο για όσες αλυσίδες λείπουν
+    new_chains = set(CHAINS) - seen if prev else set(CHAINS)
     day = datetime.date.fromisoformat(snapshot["date"])
     for back in range(14, 0, -1):
         d = day - datetime.timedelta(days=back)
@@ -37,7 +41,8 @@ def regular_prices(snapshot, prev):
         for p in old["products"]:
             for r in p.get("retailer_prices") or []:
                 if r.get("retailer") in CHAINS and r.get("country", "GR") == "GR" and r.get("price") is not None and not r.get("is_discount"):
-                    reg[(p["id"], r["retailer"])] = r["price"]
+                    if r["retailer"] in new_chains:
+                        reg[(p["id"], r["retailer"])] = r["price"]
     return reg
 
 
